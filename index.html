@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memoria Pokémon</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #ffcc00, #ff6699);
+            font-family: Arial, sans-serif;
+            margin: 0;
+        }
+        canvas {
+            border: 5px solid #333;
+            border-radius: 10px;
+            background-color: white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <script>
+        let cartas = [];
+        let imagenesPokemon = [];
+        let cartasVolteadas = [];
+        let parejasEncontradas = 0;
+        let puedeHacerClick = false;
+        const columnas = 5;
+        const filas = 4;
+        const anchoCarta = 100;
+        const altoCarta = 130;
+        const margen = 15;
+
+        function preload() {
+            obtenerImagenesPokemon();
+        }
+
+        async function obtenerImagenesPokemon() {
+            let ids = new Set();
+            while (ids.size < 10) {
+                ids.add(Math.floor(Math.random() * 150) + 1);
+            }
+            let promesas = [];
+            for (let id of ids) {
+                promesas.push(fetch(`https://pokeapi.co/api/v2/pokemon/${id}`).then(res => res.json()));
+            }
+            let datosPokemones = await Promise.all(promesas);
+            for (let datos of datosPokemones) {
+                let imagen = loadImage(datos.sprites.front_default);
+                imagenesPokemon.push(imagen, imagen);
+            }
+            iniciarJuego();
+        }
+
+        function iniciarJuego() {
+            imagenesPokemon = mezclarArray(imagenesPokemon);
+            cartas = [];
+            for (let i = 0; i < 20; i++) {
+                let x = (i % columnas) * (anchoCarta + margen) + margen;
+                let y = Math.floor(i / columnas) * (altoCarta + margen) + margen;
+                cartas.push(new Carta(x, y, imagenesPokemon[i]));
+            }
+            puedeHacerClick = true;
+            redraw();
+        }
+
+        function setup() {
+            createCanvas(columnas * (anchoCarta + margen) + margen, filas * (altoCarta + margen) + margen);
+            noLoop();
+        }
+
+        function draw() {
+            background(255);
+            for (let carta of cartas) {
+                carta.mostrar();
+            }
+        }
+
+        function mousePressed() {
+            if (!puedeHacerClick) return;
+            for (let carta of cartas) {
+                if (carta.contiene(mouseX, mouseY) && !carta.visible) {
+                    carta.voltear();
+                    cartasVolteadas.push(carta);
+                    if (cartasVolteadas.length === 2) {
+                        puedeHacerClick = false;
+                        setTimeout(verificarPareja, 1000);
+                    }
+                    redraw();
+                    break;
+                }
+            }
+        }
+
+        function verificarPareja() {
+            if (cartasVolteadas[0].imagen === cartasVolteadas[1].imagen) {
+                parejasEncontradas++;
+            } else {
+                cartasVolteadas[0].voltear();
+                cartasVolteadas[1].voltear();
+            }
+            cartasVolteadas = [];
+            puedeHacerClick = true;
+            if (parejasEncontradas === 10) {
+                alert("¡Felicidades! Has encontrado todas las parejas.");
+            }
+            redraw();
+        }
+
+        class Carta {
+            constructor(x, y, imagen) {
+                this.x = x;
+                this.y = y;
+                this.ancho = anchoCarta;
+                this.alto = altoCarta;
+                this.imagen = imagen;
+                this.visible = false;
+            }
+            mostrar() {
+                fill(this.visible ? "#ffffff" : "#ff6600");
+                stroke(0);
+                rect(this.x, this.y, this.ancho, this.alto, 10);
+                if (this.visible) {
+                    image(this.imagen, this.x + 10, this.y + 10, this.ancho - 20, this.alto - 20);
+                }
+            }
+            voltear() {
+                this.visible = !this.visible;
+            }
+            contiene(px, py) {
+                return px > this.x && px < this.x + this.ancho && py > this.y && py < this.y + this.alto;
+            }
+        }
+
+        function mezclarArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                let j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+    </script>
+</body>
+</html>
+
